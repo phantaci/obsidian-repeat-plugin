@@ -12,14 +12,16 @@ function diffSymmetrically(
 }
 
 /**
- * Makes a succinct, human-readable summary of the diff between dueAt and now.
+ * Makes a compact, mobile-friendly summary of the diff between dueAt and now.
  * @param dueAt When the note is due.
  * @param now A reference time.
+ * @param compact Whether to use compact format for mobile
  * @returns A short summary of the time diff between dueAt and now.
  */
 export function summarizeDueAt(
   dueAt: DateTime,
   now: DateTime = DateTime.now(),
+  compact: boolean = false,
 ): string {
   if (!dueAt) {
     return '';
@@ -63,7 +65,22 @@ export function summarizeDueAt(
   }
   const diffSequence = (reportUnits || []).map((units) => {
     const value = diff[units];
-    const summary = `${value} ${value === 1 ? units.slice(0, -1) : units}`;
+    let unitText;
+    if (compact) {
+      // Use compact abbreviations for mobile
+      const compactUnits = {
+        'years': 'y',
+        'months': 'mo',
+        'days': 'd',
+        'hours': 'h',
+        'minutes': 'm',
+        'seconds': 's'
+      };
+      unitText = compactUnits[units] || units;
+    } else {
+      unitText = value === 1 ? units.slice(0, -1) : units;
+    }
+    const summary = `${value}${compact ? '' : ' '}${unitText}`;
     return {
       summary,
       units,
@@ -71,7 +88,8 @@ export function summarizeDueAt(
     };
   }).filter(({ value }) => value !== 0);
   if (diffSequence.length > 1) {
-    return [diffSequence[0].summary, 'and', diffSequence[1].summary].join(' ');
+    const connector = compact ? ' ' : ' and ';
+    return [diffSequence[0].summary, connector, diffSequence[1].summary].join('');
   }
   if (diffSequence.length === 0) {
     return 'a moment';

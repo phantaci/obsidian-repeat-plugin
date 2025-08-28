@@ -10,7 +10,7 @@ export const DISMISS_BUTTON_TEXT = 'Dismiss';
 export const NEVER_BUTTON_TEXT = 'Never';
 
 export const SKIP_PERIOD_MINUTES = 5;
-export const SKIP_BUTTON_TEXT = `${SKIP_PERIOD_MINUTES} minutes (skip)`;
+export const SKIP_BUTTON_TEXT = `${SKIP_PERIOD_MINUTES}m (skip)`;
 
 /**
  * Determines next repetition date.
@@ -174,7 +174,7 @@ function getPeriodicRepeatChoices(
   }, {
     text: repetition.repeatPeriodUnit === 'WEEKDAYS'
       ? summarizeWeekdayDueAt(nextRepeatDueAt, now)
-      : summarizeDueAt(nextRepeatDueAt, now),
+      : summarizeDueAt(nextRepeatDueAt, now, true),
     nextRepetition: {
       ...repetition,
       repeatDueAt: nextRepeatDueAt,
@@ -244,7 +244,7 @@ function getSpacedRepeatChoices(
     }
     hours = Math.round(hours);
     return {
-      text: `${summarizeDueAt(nextRepeatDueAt, now)} (x${multiplier})`,
+      text: `${summarizeDueAt(nextRepeatDueAt, now, true)} (x${multiplier})`,
       nextRepetition: {
         ...repetition,
         repeatDueAt: nextRepeatDueAt,

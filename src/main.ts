@@ -293,22 +293,13 @@ class RepeatPluginSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-        .setName('Show ribbon icon')
-        .setDesc('Whether to display the ribbon icon that opens the Repeat pane.')
-        .addToggle(component => component
-          .setValue(this.plugin.settings.showRibbonIcon)
-          .onChange(async (value) => {
-            this.plugin.settings.showRibbonIcon = value;
-            await this.plugin.saveSettings();
-          }));
-
-    new Setting(containerEl)
         .setName('Ignore folder path')
         .setDesc('Notes in this folder and its subfolders will not become due. Useful to avoid reviewing templates.')
         .addText((component) => component
           .setValue(this.plugin.settings.ignoreFolderPath)
           .onChange(async (value) => {
-            this.plugin.settings.ignoreFolderPath = value;
+            const trimmedValue = value.trim();
+            this.plugin.settings.ignoreFolderPath = trimmedValue;
             await this.plugin.saveSettings();
           }));
 

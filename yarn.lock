@@ -297,9 +297,9 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@codemirror/language@git+https://github.com/lishid/cm-language.git":
-  version "6.10.1"
-  resolved "git+https://github.com/lishid/cm-language.git#2644bfc27afda707a7e1f3aedaf3ca7120f63cd9"
+"@codemirror/language@https://github.com/lishid/cm-language":
+  version "6.11.2"
+  resolved "https://github.com/lishid/cm-language#a9c3c7efe17dd1d24395ee2a179fe12dd6ed1e76"
   dependencies:
     "@codemirror/state" "^6.0.0"
     "@codemirror/view" "^6.23.0"
