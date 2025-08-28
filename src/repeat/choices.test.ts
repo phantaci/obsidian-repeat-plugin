@@ -453,3 +453,174 @@ describe('weekday repetition date calculation', () => {
     }
   });
 });
+
+describe('custom interval choices', () => {
+  const customIntervalSettings = {
+    ...mockPluginSettings,
+    useCustomIntervals: true,
+    customIntervalButtons: [
+      { amount: 10, unit: 's', label: '重来', color: 'red' },
+      { amount: 10, unit: 'm', label: '简单', color: 'blue' },
+      { amount: 1, unit: 'd', label: '良好', color: 'green' },
+      { amount: 2, unit: 'd', label: '掌握', color: 'orange' },
+    ],
+    enqueueNonRepeatingNotes: false,
+  };
+
+  test('custom interval buttons generate correct choices for spaced repetition', () => {
+    const now = DateTime.now();
+    const choices = getRepeatChoices(spacedRepetition, customIntervalSettings as any);
+
+    // Should have 4 choices: 4 custom buttons (no skip button)
+    expect(choices).toHaveLength(4);
+
+    // Check custom interval buttons
+    expect(choices[0].text).toBe('10s 重来');
+    expect(choices[0].color).toBe('red');
+    expect(choices[1].text).toBe('10m 简单');
+    expect(choices[1].color).toBe('blue');
+    expect(choices[2].text).toBe('1d 良好');
+    expect(choices[2].color).toBe('green');
+    expect(choices[3].text).toBe('2d 掌握');
+    expect(choices[3].color).toBe('orange');
+
+    // Verify next repetition dates are correct
+    choices.forEach((choice, index) => {
+      if (isRepetition(choice.nextRepetition)) {
+        expect(choice.nextRepetition.repeatDueAt).toBeInstanceOf(DateTime);
+        expect(choice.nextRepetition.repeatDueAt > now).toBe(true);
+        expect(choice.nextRepetition.repeatPeriodUnit).toBe('HOUR');
+      }
+    });
+  });
+
+  test('custom intervals with NEVER button when virtual note', () => {
+    const settingsWithNever = {
+      ...customIntervalSettings,
+      enqueueNonRepeatingNotes: true,
+    };
+
+    const choices = getRepeatChoices(virtualSpacedRepetition, settingsWithNever as any);
+
+    // Should have 5 choices: 4 custom buttons + never
+    expect(choices).toHaveLength(5);
+
+    // Check that the NEVER button is present
+    const neverChoice = choices.find(choice => choice.nextRepetition === 'NEVER');
+    expect(neverChoice).toBeDefined();
+    expect(neverChoice?.text).toBe(NEVER_BUTTON_TEXT);
+  });
+
+  test('custom intervals disabled falls back to original algorithm', () => {
+    const settingsWithoutCustom = {
+      ...mockPluginSettings,
+      useCustomIntervals: false,
+      customIntervalButtons: [
+        { amount: 10, unit: 's', label: '重来', color: 'red' },
+      ],
+    };
+
+    const choices = getRepeatChoices(spacedRepetition, settingsWithoutCustom as any);
+
+    // Should use original algorithm with 5 choices: skip + 4 multiplier choices
+    expect(choices).toHaveLength(5);
+    expect(choices[0].text).toBe(SKIP_BUTTON_TEXT);
+    
+    // Should contain multiplier choices (x0.5, x1.0, x1.5, x2.0)
+    const multiplierChoices = choices.slice(1);
+    multiplierChoices.forEach(choice => {
+      expect(choice.text).toMatch(/\(x\d+(\.\d+)?\)$/);
+    });
+  });
+
+  test('empty custom intervals falls back to original algorithm', () => {
+    const settingsWithEmptyCustom = {
+      ...mockPluginSettings,
+      useCustomIntervals: true,
+      customIntervalButtons: [],
+    };
+
+    const choices = getRepeatChoices(spacedRepetition, settingsWithEmptyCustom as any);
+
+    // Should use original algorithm
+    expect(choices).toHaveLength(5);
+    expect(choices[0].text).toBe(SKIP_BUTTON_TEXT);
+  });
+
+  test('custom intervals only affect spaced repetition, not periodic', () => {
+    const choices = getRepeatChoices(periodicRepetition, customIntervalSettings as any);
+
+    // Periodic repetition should still use original logic (2 choices: skip + next)
+    expect(choices).toHaveLength(2);
+    expect(choices[0].text).toBe(SKIP_BUTTON_TEXT);
+  });
+});
+
+describe('custom interval time calculations', () => {
+  test('converts custom interval units correctly', () => {
+    const now = DateTime.fromObject({ year: 2024, month: 1, day: 1, hour: 12, minute: 0 });
+    
+    // Test seconds
+    const secondsResult = now.plus({ seconds: 30 });
+    expect(secondsResult.diff(now, 'seconds').seconds).toBe(30);
+    
+    // Test minutes
+    const minutesResult = now.plus({ minutes: 15 });
+    expect(minutesResult.diff(now, 'minutes').minutes).toBe(15);
+    
+    // Test hours
+    const hoursResult = now.plus({ hours: 2 });
+    expect(hoursResult.diff(now, 'hours').hours).toBe(2);
+    
+    // Test days
+    const daysResult = now.plus({ days: 3 });
+    expect(daysResult.diff(now, 'days').days).toBe(3);
+  });
+
+  test('custom interval buttons create correct due dates', () => {
+    const baseTime = DateTime.fromObject({ year: 2024, month: 1, day: 1, hour: 12, minute: 0 });
+    const originalNow = DateTime.now;
+    DateTime.now = () => baseTime;
+
+    try {
+      const customSettings = {
+        ...mockPluginSettings,
+        useCustomIntervals: true,
+        customIntervalButtons: [
+          { amount: 30, unit: 's', label: '立即', color: 'red' },
+          { amount: 5, unit: 'm', label: '很快', color: 'orange' },
+          { amount: 2, unit: 'h', label: '稍后', color: 'green' },
+          { amount: 1, unit: 'd', label: '明天', color: 'blue' },
+        ],
+      };
+
+      const choices = getRepeatChoices(spacedRepetition, customSettings as any);
+      
+      // All choices are custom interval buttons (no skip button)
+      const customChoices = choices;
+      
+      // Verify each custom interval creates correct due date
+      if (isRepetition(customChoices[0].nextRepetition)) {
+        const thirtySecondsLater = customChoices[0].nextRepetition.repeatDueAt;
+        expect(thirtySecondsLater.diff(baseTime, 'seconds').seconds).toBeCloseTo(30, 0);
+      }
+      
+      if (isRepetition(customChoices[1].nextRepetition)) {
+        const fiveMinutesLater = customChoices[1].nextRepetition.repeatDueAt;
+        expect(fiveMinutesLater.diff(baseTime, 'minutes').minutes).toBeCloseTo(5, 0);
+      }
+      
+      if (isRepetition(customChoices[2].nextRepetition)) {
+        const twoHoursLater = customChoices[2].nextRepetition.repeatDueAt;
+        expect(twoHoursLater.diff(baseTime, 'hours').hours).toBeCloseTo(2, 0);
+      }
+      
+      if (isRepetition(customChoices[3].nextRepetition)) {
+        const oneDayLater = customChoices[3].nextRepetition.repeatDueAt;
+        expect(oneDayLater.diff(baseTime, 'days').days).toBeCloseTo(1, 0);
+      }
+    } finally {
+      DateTime.now = originalNow;
+    }
+  });
+});

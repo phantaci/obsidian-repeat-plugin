@@ -1,5 +1,16 @@
 import { Repeat } from "./repeat/repeatTypes";
 
+export type CustomIntervalUnit = 's' | 'm' | 'h' | 'd';
+
+export type ButtonColor = 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'cyan' | 'gray';
+
+export interface CustomIntervalButton {
+  amount: number;
+  unit: CustomIntervalUnit;
+  label: string;
+  color: ButtonColor;
+}
+
 export interface RepeatPluginSettings {
   showDueCountInStatusBar: boolean;
   showRibbonIcon: boolean;
@@ -8,6 +19,8 @@ export interface RepeatPluginSettings {
   eveningReviewTime: string;
   defaultRepeat: Repeat;
   enqueueNonRepeatingNotes: boolean;
+  useCustomIntervals: boolean;
+  customIntervalButtons: CustomIntervalButton[];
 }
 
 export const DEFAULT_SETTINGS: RepeatPluginSettings = {
@@ -23,4 +36,11 @@ export const DEFAULT_SETTINGS: RepeatPluginSettings = {
     repeatTimeOfDay: 'AM',
   },
   enqueueNonRepeatingNotes: false,
+  useCustomIntervals: false,
+  customIntervalButtons: [
+    { amount: 10, unit: 's', label: '重来', color: 'red' },
+    { amount: 10, unit: 'm', label: '简单', color: 'blue' },
+    { amount: 1, unit: 'd', label: '良好', color: 'green' },
+    { amount: 2, unit: 'd', label: '掌握', color: 'orange' },
+  ],
 };

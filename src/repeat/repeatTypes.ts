@@ -27,5 +27,6 @@ export interface Repetition extends Repeat {
 // A next-repeat choice shown in the review interface.
 export type RepeatChoice = {
   text: string,
+  color?: string,
   nextRepetition: Repetition | 'DISMISS' | 'NEVER',
 }

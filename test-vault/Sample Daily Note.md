@@ -1,7 +1,7 @@
 ---
-repeat: spaced every day
+repeat: spaced every hour
 hidden: true
-due_at: 2025-08-28T16:42:51.426+08:00
+due_at: 2025-08-28T21:51:51.640+08:00
 ---
 
 # Daily Review Note

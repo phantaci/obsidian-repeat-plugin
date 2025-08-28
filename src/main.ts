@@ -1,11 +1,14 @@
 import {
   App,
-  debounce,
-  MarkdownView,
   Plugin,
-  PluginManifest,
   PluginSettingTab,
   Setting,
+  TFile,
+  WorkspaceLeaf,
+  Notice,
+  PluginManifest,
+  debounce,
+  MarkdownView,
 } from 'obsidian';
 
 import RepeatView, { REPEATING_NOTES_DUE_VIEW } from './repeat/obsidian/RepeatView';
@@ -356,5 +359,203 @@ class RepeatPluginSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }));
 
+    new Setting(containerEl)
+      .setName('Use custom interval buttons')
+      .setDesc('Enable custom interval buttons for spaced repetition instead of the default algorithm.')
+      .addToggle(component => component
+        .setValue(this.plugin.settings.useCustomIntervals)
+        .onChange(async (value) => {
+          this.plugin.settings.useCustomIntervals = value;
+          await this.plugin.saveSettings();
+          this.display(); // Refresh to show/hide custom interval settings
+        }));
+
+    if (this.plugin.settings.useCustomIntervals) {
+      this.displayCustomIntervalSettings(containerEl);
+    }
+
+  }
+
+  displayCustomIntervalSettings(containerEl: HTMLElement) {
+    const customIntervalContainer = containerEl.createEl('div', {
+      cls: 'custom-interval-container'
+    });
+
+    customIntervalContainer.createEl('h3', {
+      text: 'Custom Interval Buttons'
+    });
+
+    customIntervalContainer.createEl('p', {
+      text: 'Configure custom buttons for spaced repetition. Each button must have a longer interval than the previous one.',
+      cls: 'setting-item-description'
+    });
+
+    // Display existing buttons
+    this.plugin.settings.customIntervalButtons.forEach((button, index) => {
+      this.createCustomIntervalButtonSetting(customIntervalContainer, button, index);
+    });
+
+    // Add button
+    new Setting(customIntervalContainer)
+      .setName('Add new button')
+      .setDesc('Add a new custom interval button')
+      .addButton(component => component
+        .setButtonText('Add Button')
+        .onClick(async () => {
+          const newButton = { amount: 1, unit: 'm' as const, label: 'New', color: 'gray' as const };
+          this.plugin.settings.customIntervalButtons.push(newButton);
+          await this.plugin.saveSettings();
+          this.display(); // Refresh to show new button
+        }));
+  }
+
+  createCustomIntervalButtonSetting(container: HTMLElement, button: any, index: number) {
+    const setting = new Setting(container)
+      .setName(`Button ${index + 1}`)
+      .setDesc(`${button.amount}${button.unit} ${button.label}`);
+
+    // Amount input
+    setting.addText(component => {
+      const textComponent = component
+        .setPlaceholder('Amount')
+        .setValue(button.amount.toString());
+      
+      let timeoutId: NodeJS.Timeout;
+      
+      textComponent.onChange(async (value) => {
+        const amount = parseInt(value);
+        if (!isNaN(amount) && amount > 0) {
+          button.amount = amount;
+          await this.plugin.saveSettings();
+          
+          // Debounce the display refresh
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            if (this.validateCustomIntervalOrder()) {
+              this.updateButtonDescription(setting, button);
+            }
+          }, 500);
+        }
+      });
+      
+      // Update on blur (when user finishes editing)
+      textComponent.inputEl.addEventListener('blur', async () => {
+        clearTimeout(timeoutId);
+        if (this.validateCustomIntervalOrder()) {
+          this.updateButtonDescription(setting, button);
+        }
+      });
+      
+      return textComponent;
+    });
+
+    // Unit dropdown
+    setting.addDropdown(component => component
+      .addOption('s', 'seconds')
+      .addOption('m', 'minutes')
+      .addOption('h', 'hours')
+      .addOption('d', 'days')
+      .setValue(button.unit)
+      .onChange(async (value) => {
+        button.unit = value as any;
+        if (this.validateCustomIntervalOrder()) {
+          await this.plugin.saveSettings();
+          this.updateButtonDescription(setting, button);
+        }
+      }));
+
+    // Label input
+    setting.addText(component => {
+      const textComponent = component
+        .setPlaceholder('Label')
+        .setValue(button.label);
+      
+      let timeoutId: NodeJS.Timeout;
+      
+      textComponent.onChange(async (value) => {
+        button.label = value;
+        await this.plugin.saveSettings();
+        
+        // Debounce the display refresh
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          this.updateButtonDescription(setting, button);
+        }, 500);
+      });
+      
+      // Update on blur (when user finishes editing)
+      textComponent.inputEl.addEventListener('blur', async () => {
+        clearTimeout(timeoutId);
+        this.updateButtonDescription(setting, button);
+      });
+      
+      return textComponent;
+    });
+
+    // Color dropdown
+    setting.addDropdown(component => component
+      .addOption('red', '暗红色')
+      .addOption('orange', '橙色')
+      .addOption('green', '绿色')
+      .addOption('blue', '蓝色')
+      .addOption('purple', '紫色')
+      .addOption('cyan', '青色')
+      .addOption('gray', '灰色')
+      .setValue(button.color || 'gray')
+      .onChange(async (value) => {
+        button.color = value as any;
+        await this.plugin.saveSettings();
+        this.updateButtonDescription(setting, button);
+      }));
+
+    // Delete button
+    setting.addButton(component => component
+      .setButtonText('Delete')
+      .setWarning()
+      .onClick(async () => {
+        this.plugin.settings.customIntervalButtons.splice(index, 1);
+        await this.plugin.saveSettings();
+        this.display(); // Refresh to remove deleted button
+      }));
+  }
+
+  updateButtonDescription(setting: Setting, button: any) {
+    setting.setDesc(`${button.amount}${button.unit} ${button.label} (${this.getColorDisplayName(button.color)})`);
+  }
+
+  getColorDisplayName(color: string): string {
+    const colorNames: Record<string, string> = {
+      'red': '暗红色',
+      'orange': '橙色', 
+      'green': '绿色',
+      'blue': '蓝色',
+      'purple': '紫色',
+      'cyan': '青色',
+      'gray': '灰色'
+    };
+    return colorNames[color] || '灰色';
+  }
+
+  validateCustomIntervalOrder(): boolean {
+    const buttons = this.plugin.settings.customIntervalButtons;
+    
+    // Convert all intervals to seconds for comparison
+    const getSecondsFromButton = (button: any) => {
+      const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
+      return button.amount * multipliers[button.unit];
+    };
+
+    for (let i = 1; i < buttons.length; i++) {
+      const prevSeconds = getSecondsFromButton(buttons[i - 1]);
+      const currentSeconds = getSecondsFromButton(buttons[i]);
+      
+      if (currentSeconds <= prevSeconds) {
+        // Show error message
+        new Notice(`Button ${i + 1} interval must be longer than Button ${i} interval`);
+        return false;
+      }
+    }
+    
+    return true;
   }
 }

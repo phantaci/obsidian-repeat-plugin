@@ -29,6 +29,7 @@ class RepeatView extends ItemView {
   previewContainer: HTMLElement;
   root: Element;
   settings: RepeatPluginSettings;
+  buttonElements: HTMLButtonElement[] = [];
 
   constructor(leaf: WorkspaceLeaf, settings: RepeatPluginSettings) {
     super(leaf);
@@ -46,6 +47,7 @@ class RepeatView extends ItemView {
     this.setMessage = this.setMessage.bind(this);
     this.setPage = this.setPage.bind(this);
     this.resetView = this.resetView.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
 
     this.component = new Component();
 
@@ -103,12 +105,33 @@ class RepeatView extends ItemView {
       this.app.vault.on('delete', this.handleExternalModifyOrDelete));
     this.registerEvent(
       this.app.vault.on('rename', this.handleExternalRename));
+    
+    // Add keyboard event listener for shortcuts
+    this.registerDomEvent(document, 'keydown', this.handleKeyDown);
   }
 
   disableExternalHandlers () {
     this.app.vault.off('modify', this.handleExternalModifyOrDelete);
     this.app.vault.off('delete', this.handleExternalModifyOrDelete);
     this.app.vault.off('rename', this.handleExternalRename);
+  }
+
+  handleKeyDown(event: KeyboardEvent) {
+    // Only handle shortcuts when the repeat view is active and has focus
+    if (!this.containerEl.contains(document.activeElement) && 
+        document.activeElement !== document.body) {
+      return;
+    }
+
+    // Handle number keys 1-9 for button shortcuts
+    const keyNumber = parseInt(event.key);
+    if (keyNumber >= 1 && keyNumber <= 9) {
+      const buttonIndex = keyNumber - 1;
+      if (buttonIndex < this.buttonElements.length) {
+        event.preventDefault();
+        this.buttonElements[buttonIndex].click();
+      }
+    }
   }
 
   async promiseMetadataChangeOrTimeOut() {
@@ -235,9 +258,11 @@ class RepeatView extends ItemView {
     this.messageContainer = this.root.createEl('div', { cls: 'repeat-message' });
     // Hide until there's a message to manage spacing.
     this.messageContainer.style.display = 'none';
-    this.buttonsContainer = this.root.createEl('div', { cls: 'repeat-buttons' });
     this.previewContainer = this.root.createEl('div', { cls: 'repeat-embedded_note' });
+    this.buttonsContainer = this.root.createEl('div', { cls: 'repeat-buttons repeat-buttons-floating' });
     this.currentDueFilePath = undefined;
+    // Clear button references for new set of buttons
+    this.buttonElements = [];
   }
 
   setMessage(message: string) {
@@ -249,10 +274,21 @@ class RepeatView extends ItemView {
     choice: RepeatChoice,
     file: TFile,
   ) {
+    const buttonIndex = this.buttonElements.length;
+    const shortcutKey = buttonIndex + 1;
+    
     return this.buttonsContainer.createEl('button', {
-        text: choice.text,
+        text: `${choice.text} (${shortcutKey})`,
       },
       (buttonElement) => {
+        // Apply color styling if available
+        if (choice.color) {
+          buttonElement.addClass(`repeat-button-${choice.color}`);
+        }
+        
+        // Store button reference for keyboard shortcuts
+        this.buttonElements.push(buttonElement);
+        
         buttonElement.onclick = async () => {
           this.resetView();
           const markdown = await this.app.vault.read(file);

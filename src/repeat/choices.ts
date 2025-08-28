@@ -3,7 +3,7 @@ import { DateTime, Duration } from 'luxon';
 import { summarizeDueAt } from './utils';
 import { Repetition, RepeatChoice } from './repeatTypes';
 import { uniqByField } from '../utils';
-import { RepeatPluginSettings } from '../settings';
+import { RepeatPluginSettings, CustomIntervalButton, CustomIntervalUnit } from '../settings';
 import { parseTime } from './parsers';
 
 export const DISMISS_BUTTON_TEXT = 'Dismiss';
@@ -192,6 +192,72 @@ function getPeriodicRepeatChoices(
 }
 
 /**
+ * Convert custom interval unit to luxon duration unit
+ */
+function convertCustomIntervalUnit(unit: CustomIntervalUnit): string {
+  const unitMap: Record<CustomIntervalUnit, string> = {
+    's': 'seconds',
+    'm': 'minutes', 
+    'h': 'hours',
+    'd': 'days'
+  };
+  return unitMap[unit];
+}
+
+/**
+ * Gets all repeat button choices for a spaced note using custom intervals.
+ * @param repetition The note's parsed repetition status.
+ * @param now A reference time (for consistent diffs).
+ * @param settings Plugin settings.
+ * @returns Collection of repeat choices.
+ */
+function getCustomSpacedRepeatChoices(
+  repetition: Repetition,
+  now: DateTime,
+  settings: RepeatPluginSettings,
+): RepeatChoice[] {
+  const { repeatDueAt } = repetition;
+  if ((repeatDueAt > now) || !repeatDueAt) {
+    return [{
+      text: DISMISS_BUTTON_TEXT,
+      nextRepetition: 'DISMISS',
+    }];
+  }
+
+  const choices: RepeatChoice[] = [];
+
+  // Add custom interval buttons
+  settings.customIntervalButtons.forEach((button: CustomIntervalButton) => {
+    const nextRepeatDueAt = now.plus({
+      [convertCustomIntervalUnit(button.unit)]: button.amount,
+    });
+
+    // Convert to hours for storage consistency
+    const diffHours = Math.max(1, Math.round(nextRepeatDueAt.diff(now, 'hours').hours));
+
+    choices.push({
+      text: `${button.amount}${button.unit} ${button.label}`,
+      color: button.color,
+      nextRepetition: {
+        ...repetition,
+        repeatDueAt: nextRepeatDueAt,
+        repeatPeriod: diffHours,
+        repeatPeriodUnit: 'HOUR',
+      }
+    });
+  });
+
+  if (settings.enqueueNonRepeatingNotes && repetition.virtual) {
+    choices.push({
+      text: NEVER_BUTTON_TEXT,
+      nextRepetition: 'NEVER',
+    });
+  }
+
+  return choices;
+}
+
+/**
  * Gets all repeat button choices for a spaced note.
  * @param repetition The note's parsed repetition status.
  * @param now A reference time (for consistent diffs).
@@ -203,6 +269,12 @@ function getSpacedRepeatChoices(
   now: DateTime,
   settings: RepeatPluginSettings,
 ): RepeatChoice[] {
+  // Use custom intervals if enabled
+  if (settings.useCustomIntervals && settings.customIntervalButtons.length > 0) {
+    return getCustomSpacedRepeatChoices(repetition, now, settings);
+  }
+
+  // Original algorithm
   const {
     repeatPeriod,
     repeatPeriodUnit,
