@@ -74,9 +74,9 @@
 
   /* Mobile floating buttons optimization */
   .repeat-buttons-floating {
-    bottom: calc(30px + env(safe-area-inset-bottom));
+    bottom: 0px;
     width: calc(100% - 16px);
-    padding: 4px;
+    padding: 4px 4px 0 4px;
     gap: 4px;
   }
 
@@ -96,7 +96,7 @@
 /* Tablet layout */
 @media (min-width: 451px) and (max-width: 768px) {
   .repeat-buttons-floating {
-    bottom: calc(30px + env(safe-area-inset-bottom));
+    bottom: calc(4px + env(safe-area-inset-bottom));
     width: calc(100% - 24px);
     padding: 6px;
     gap: 6px;

@@ -20,8 +20,19 @@
               "icon": "lucide-file",
               "title": "Sample Daily Note"
             }
+          },
+          {
+            "id": "c3bce64ec20c0034",
+            "type": "leaf",
+            "state": {
+              "type": "repeating-notes-due-view",
+              "state": {},
+              "icon": "clock",
+              "title": "Repeat"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -170,7 +181,7 @@
       "repeat-plugin:Repeat due notes": false
     }
   },
-  "active": "1da0be32c4dac014",
+  "active": "c3bce64ec20c0034",
   "lastOpenFiles": [
     "Sample Spaced Note.md",
     "Sample Daily Note.md",
