@@ -291,11 +291,66 @@ class RepeatView extends ItemView {
       const audioElements = container.querySelectorAll('audio');
       if (audioElements.length > 0) {
         const firstAudio = audioElements[0] as HTMLAudioElement;
-        firstAudio.play().catch((error) => {
-          console.log('Auto-play failed (user interaction may be required):', error);
+        
+        // Try auto-play first (works on desktop && after frist play on mobile)
+        firstAudio.play().then(() => {
+          // Auto-play succeeded, remove any play button if it exists
+          this.removeAudioPlayButton(container);
+        }).catch((error) => {
+          console.log('Auto-play failed, showing play button for user interaction');
+          // Auto-play failed (likely mobile), show a play button
+          this.showAudioPlayButton(container, firstAudio);
         });
       }
     }, 900);
+  }
+
+  showAudioPlayButton(container: HTMLElement, audioElement: HTMLAudioElement) {
+    // Check if play button already exists
+    const existingButton = container.querySelector('.repeat-audio-play-button');
+    if (existingButton) {
+      return;
+    }
+
+    // Create play button
+    const playButton = document.createElement('button');
+    playButton.className = 'repeat-audio-play-button';
+    playButton.innerHTML = '🔊 播放音频';
+    playButton.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--interactive-accent);
+      color: var(--text-on-accent);
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    `;
+
+    // Add click handler
+    playButton.onclick = () => {
+      audioElement.play().then(() => {
+        // Hide button after successful play
+        playButton.style.display = 'none';
+      }).catch((error) => {
+        console.log('Manual audio play failed:', error);
+      });
+    };
+
+    // Add to container
+    container.style.position = 'relative';
+    container.appendChild(playButton);
+  }
+
+  removeAudioPlayButton(container: HTMLElement) {
+    const playButton = container.querySelector('.repeat-audio-play-button');
+    if (playButton) {
+      playButton.remove();
+    }
   }
 
   async addRepeatButton(
