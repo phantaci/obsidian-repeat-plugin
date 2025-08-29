@@ -1,8 +1,11 @@
 ---
 repeat: spaced every hour
 hidden: true
-due_at: 2025-08-28T21:51:51.640+08:00
+due_at: 2025-08-29T15:23:44.237+08:00
 ---
+
+
+![[initiative.m4a]]
 
 # Daily Review Note
 

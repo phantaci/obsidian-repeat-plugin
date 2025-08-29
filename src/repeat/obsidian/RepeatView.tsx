@@ -241,14 +241,21 @@ class RepeatView extends ItemView {
     // Render the note contents.
     const markdown = await this.app.vault.cachedRead(file);
     const delimitedFrontmatterBounds = determineFrontmatterBounds(markdown, true);
+    const contentMarkdown = markdown.slice(
+      delimitedFrontmatterBounds ? delimitedFrontmatterBounds[1] : 0);
+    
     await renderMarkdown(
       this.app,
-      markdown.slice(
-        delimitedFrontmatterBounds ? delimitedFrontmatterBounds[1] : 0),
+      contentMarkdown,
       markdownContainer,
       file.path,
       this.component,
       this.app.vault);
+
+    // Auto-play first audio if enabled
+    if (this.settings.autoPlayAudio) {
+      this.autoPlayFirstAudio(contentMarkdown, markdownContainer);
+    }
   }
 
   resetView() {
@@ -268,6 +275,27 @@ class RepeatView extends ItemView {
   setMessage(message: string) {
     this.messageContainer.style.display = 'block';
     this.messageContainer.setText(message);
+  }
+
+  autoPlayFirstAudio(markdown: string, container: HTMLElement) {
+    // Extract audio file references from markdown (e.g., ![[audio.m4a]])
+    const audioRegex = /!\[\[([^[\]]*\.(mp3|m4a|wav|ogg|webm|flac))\]\]/gi;
+    const matches = markdown.match(audioRegex);
+    
+    if (!matches || matches.length === 0) {
+      return;
+    }
+    
+    // Wait for the DOM to be rendered, then find and play the first audio element
+    setTimeout(() => {
+      const audioElements = container.querySelectorAll('audio');
+      if (audioElements.length > 0) {
+        const firstAudio = audioElements[0] as HTMLAudioElement;
+        firstAudio.play().catch((error) => {
+          console.log('Auto-play failed (user interaction may be required):', error);
+        });
+      }
+    }, 900);
   }
 
   async addRepeatButton(

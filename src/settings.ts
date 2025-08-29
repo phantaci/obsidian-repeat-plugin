@@ -21,6 +21,7 @@ export interface RepeatPluginSettings {
   enqueueNonRepeatingNotes: boolean;
   useCustomIntervals: boolean;
   customIntervalButtons: CustomIntervalButton[];
+  autoPlayAudio: boolean;
 }
 
 export const DEFAULT_SETTINGS: RepeatPluginSettings = {
@@ -43,4 +44,5 @@ export const DEFAULT_SETTINGS: RepeatPluginSettings = {
     { amount: 1, unit: 'd', label: '良好', color: 'green' },
     { amount: 2, unit: 'd', label: '掌握', color: 'orange' },
   ],
+  autoPlayAudio: false,
 };

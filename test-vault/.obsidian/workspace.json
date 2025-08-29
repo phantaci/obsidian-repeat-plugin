@@ -20,19 +20,8 @@
               "icon": "lucide-file",
               "title": "Sample Daily Note"
             }
-          },
-          {
-            "id": "c3bce64ec20c0034",
-            "type": "leaf",
-            "state": {
-              "type": "repeating-notes-due-view",
-              "state": {},
-              "icon": "clock",
-              "title": "Repeat"
-            }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -89,7 +78,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "0ee385e49f937c07",
@@ -181,10 +171,11 @@
       "repeat-plugin:Repeat due notes": false
     }
   },
-  "active": "c3bce64ec20c0034",
+  "active": "1da0be32c4dac014",
   "lastOpenFiles": [
     "Sample Spaced Note.md",
     "Sample Daily Note.md",
+    "initiative.m4a",
     "README.md"
   ]
 }

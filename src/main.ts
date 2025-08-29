@@ -360,6 +360,16 @@ class RepeatPluginSettingTab extends PluginSettingTab {
           }));
 
     new Setting(containerEl)
+      .setName('Auto-play audio in review')
+      .setDesc('Automatically play the first audio file found in notes during spaced repetition review.')
+      .addToggle(component => component
+        .setValue(this.plugin.settings.autoPlayAudio)
+        .onChange(async (value) => {
+          this.plugin.settings.autoPlayAudio = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
       .setName('Use custom interval buttons')
       .setDesc('Enable custom interval buttons for spaced repetition instead of the default algorithm.')
       .addToggle(component => component
