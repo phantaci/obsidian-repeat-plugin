@@ -132,7 +132,10 @@ test.concurrent.each([
   choices.forEach((choice) => {
     if (isRepetition(choice.nextRepetition)) {
       expect(choice.nextRepetition.repeatDueAt > now).toBe(true);
-      expect(choice.nextRepetition.repeatPeriodUnit).toBe('HOUR');
+      // CRITICAL: Spaced repetition choices should preserve original repeat properties
+      expect(choice.nextRepetition.repeatPeriod).toBe(repetition.repeatPeriod);
+      expect(choice.nextRepetition.repeatPeriodUnit).toBe(repetition.repeatPeriodUnit);
+      expect(choice.nextRepetition.repeatStrategy).toBe(repetition.repeatStrategy);
     }
   });
 });

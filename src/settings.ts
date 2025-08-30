@@ -4,6 +4,20 @@ export type CustomIntervalUnit = 's' | 'm' | 'h' | 'd';
 
 export type ButtonColor = 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'cyan' | 'gray';
 
+export type TagLogicOperator = 'AND' | 'OR';
+
+export interface TagCondition {
+  tag: string;
+  operator?: TagLogicOperator; // Only used for non-first conditions
+}
+
+export interface Deck {
+  id: string;
+  name: string;
+  tagConditions: TagCondition[];
+  isDefault?: boolean; // For the default "All Notes" deck
+}
+
 export interface CustomIntervalButton {
   amount: number;
   unit: CustomIntervalUnit;
@@ -22,6 +36,7 @@ export interface RepeatPluginSettings {
   useCustomIntervals: boolean;
   customIntervalButtons: CustomIntervalButton[];
   autoPlayAudio: boolean;
+  decks: Deck[];
 }
 
 export const DEFAULT_SETTINGS: RepeatPluginSettings = {
@@ -45,4 +60,12 @@ export const DEFAULT_SETTINGS: RepeatPluginSettings = {
     { amount: 2, unit: 'd', label: '掌握', color: 'orange' },
   ],
   autoPlayAudio: false,
+  decks: [
+    {
+      id: 'default',
+      name: 'All Notes',
+      tagConditions: [],
+      isDefault: true
+    }
+  ],
 };

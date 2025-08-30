@@ -38,11 +38,12 @@ class RepeatNoteSetupModal extends Modal {
 
     this.result = initialValue ? { ...initialValue } : {
       ...settings.defaultRepeat,
-      repeatDueAt: undefined,
-      hidden: false,
+      repeatDueAt: DateTime.now(), // Set to current time for new notes
+      hidden: true, // Default to hidden for new notes
     };
-    // Populate initial repeatDueAt.
-    if (!this.result.repeatDueAt) {
+    // For existing notes, recalculate repeatDueAt based on settings
+    // For new notes, keep the current time as set above
+    if (initialValue && !this.result.repeatDueAt) {
       this.updateResult('repeatPeriod', this.result.repeatPeriod);
     }
     // Populate initial summary.

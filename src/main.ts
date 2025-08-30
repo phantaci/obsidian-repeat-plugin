@@ -13,14 +13,18 @@ import {
 
 import RepeatView, { REPEATING_NOTES_DUE_VIEW } from './repeat/obsidian/RepeatView';
 import RepeatNoteSetupModal from './repeat/obsidian/RepeatNoteSetupModal';
-import { RepeatPluginSettings, DEFAULT_SETTINGS } from './settings';
+import { DeckSettingsModal } from './repeat/obsidian/DeckSettingsModal';
+import { DeckSuggestModal } from './repeat/obsidian/DeckSuggestModal';
+import { RepeatPluginSettings, DEFAULT_SETTINGS, CustomIntervalButton, ButtonColor, Deck } from './settings';
+import { calculateDeckStatistics, formatDeckStatistics, getNotesForDeck } from './repeat/deck';
 import { updateRepetitionMetadata } from './frontmatter';
 import { getAPI } from 'obsidian-dataview';
 import { getNotesDue } from './repeat/queries';
-import { parseHiddenFieldFromMarkdown, parseRepeat, parseRepetitionFromMarkdown } from './repeat/parsers';
+import { parseHiddenFieldFromMarkdown, parseRepeat, parseRepetitionFromMarkdown, formRepetition } from './repeat/parsers';
 import { serializeRepeat, serializeRepetition } from './repeat/serializers';
 import { incrementRepeatDueAt } from './repeat/choices';
 import { PeriodUnit, Repetition, Strategy, TimeOfDay } from './repeat/repeatTypes';
+import { DateTime } from 'luxon';
 
 const COUNT_DEBOUNCE_MS = 5 * 1000;
 
@@ -38,7 +42,25 @@ export default class RepeatPlugin extends Plugin {
     this.makeRepeatRibbonIcon = this.makeRepeatRibbonIcon.bind(this);
   }
 
-  async activateRepeatNotesDueView() {
+  showDeckSelectionAndStartReview() {
+    // If only default deck exists, go directly to review
+    if (this.settings.decks.length === 1 && this.settings.decks[0].isDefault) {
+      this.activateRepeatNotesDueView(this.settings.decks[0]);
+      return;
+    }
+
+    // Show deck selection suggest modal
+    new DeckSuggestModal(
+      this.app,
+      this.settings.decks,
+      this.settings,
+      (selectedDeck: Deck) => {
+        this.activateRepeatNotesDueView(selectedDeck);
+      }
+    ).open();
+  }
+
+  async activateRepeatNotesDueView(selectedDeck?: Deck) {
     // Allow only one repeat view.
     this.app.workspace.detachLeavesOfType(REPEATING_NOTES_DUE_VIEW);
 
@@ -47,9 +69,15 @@ export default class RepeatPlugin extends Plugin {
       type: REPEATING_NOTES_DUE_VIEW,
       active: true,
     });
-    this.app.workspace.revealLeaf(
-      this.app.workspace.getLeavesOfType(REPEATING_NOTES_DUE_VIEW)[0]
-    );
+
+    const leaf = this.app.workspace.getLeavesOfType(REPEATING_NOTES_DUE_VIEW)[0];
+    if (leaf && selectedDeck) {
+      // Pass the selected deck to the RepeatView
+      const view = leaf.view as RepeatView;
+      view.setSelectedDeck(selectedDeck);
+    }
+
+    this.app.workspace.revealLeaf(leaf);
   }
 
   async loadSettings() {
@@ -153,12 +181,26 @@ export default class RepeatPlugin extends Plugin {
               const content = editor.getValue();
               repetition = parseRepetitionFromMarkdown(content);
             }
-            new RepeatNoteSetupModal(
-              this.app,
-              onSubmit,
-              this.settings,
-              repetition,
-            ).open();
+            
+            // If no existing repetition (first time), directly apply default settings
+            if (!repetition) {
+              const currentTime = DateTime.now();
+              const defaultRepetition = formRepetition(
+                this.settings.defaultRepeat,
+                currentTime.toISO(), // Set due_at to current time explicitly
+                'true', // hidden defaults to true
+                currentTime
+              );
+              onSubmit(defaultRepetition);
+            } else {
+              // If repetition exists, show modal for editing
+              new RepeatNoteSetupModal(
+                this.app,
+                onSubmit,
+                this.settings,
+                repetition,
+              ).open();
+            }
           }
           return true;
         }
@@ -170,7 +212,7 @@ export default class RepeatPlugin extends Plugin {
       id: 'open-repeat-view',
       name: 'Review due notes',
       callback: () => {
-        this.activateRepeatNotesDueView();
+        this.showDeckSelectionAndStartReview();
       },
     });
 
@@ -207,28 +249,6 @@ export default class RepeatPlugin extends Plugin {
           return false;
         }
       });
-    });
-
-    this.addCommand({
-      id: 'repeat-never',
-      name: 'Never repeat this note',
-      checkCallback: (checking: boolean) => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView && !!markdownView.file) {
-          if (!checking) {
-            const { editor, file } = markdownView;
-            const content = editor.getValue();
-            const newContent = updateRepetitionMetadata(content, {
-              repeat: 'never',
-              due_at: undefined,
-              hidden: undefined,
-            });
-            this.app.vault.modify(file, newContent);
-          }
-          return true;
-        }
-        return false;
-      }
     });
 
     this.addCommand({
@@ -383,6 +403,8 @@ class RepeatPluginSettingTab extends PluginSettingTab {
     if (this.plugin.settings.useCustomIntervals) {
       this.displayCustomIntervalSettings(containerEl);
     }
+
+    this.displayDeckSettings(containerEl);
 
   }
 
@@ -567,5 +589,86 @@ class RepeatPluginSettingTab extends PluginSettingTab {
     }
     
     return true;
+  }
+
+  displayDeckSettings(containerEl: HTMLElement) {
+    const deckContainer = containerEl.createEl('div', {
+      cls: 'deck-settings-container'
+    });
+
+    deckContainer.createEl('h3', {
+      text: 'Deck Management'
+    });
+
+    deckContainer.createEl('p', {
+      text: 'Create and manage decks to organize your notes by tags. Each deck can have multiple tag conditions with AND/OR logic.',
+      cls: 'setting-item-description'
+    });
+
+    // Display existing decks
+    this.plugin.settings.decks.forEach((deck, index) => {
+      if (deck.isDefault) return; // Skip default deck
+
+      const deckSetting = new Setting(deckContainer)
+        .setName(deck.name)
+        .setDesc(this.getDeckDescription(deck));
+
+      // Edit button
+      deckSetting.addButton(button => {
+        button.setButtonText('Edit');
+        button.onClick(() => {
+          new DeckSettingsModal(this.app, deck, (updatedDeck: Deck) => {
+            this.plugin.settings.decks[index] = updatedDeck;
+            this.plugin.saveSettings();
+            this.display(); // Refresh settings display
+          }).open();
+        });
+      });
+
+      // Delete button
+      deckSetting.addButton(button => {
+        button.setButtonText('Delete');
+        button.setWarning();
+        button.onClick(() => {
+          this.plugin.settings.decks.splice(index, 1);
+          this.plugin.saveSettings();
+          this.display(); // Refresh settings display
+        });
+      });
+
+    });
+
+    // Add new deck button
+    new Setting(deckContainer)
+      .setName('Add new deck')
+      .setDesc('Add a new deck to organize notes by tags')
+      .addButton(component => component
+        .setButtonText('Add Deck')
+        .onClick(() => {
+          new DeckSettingsModal(this.app, null, (deck: Deck) => {
+            this.plugin.settings.decks.push(deck);
+            this.plugin.saveSettings();
+            this.display(); // Refresh settings display
+          }).open();
+        }));
+  }
+
+  private getDeckDescription(deck: Deck): string {
+    if (deck.tagConditions.length === 0) {
+      return 'All notes';
+    }
+
+    const parts: string[] = [];
+    for (let i = 0; i < deck.tagConditions.length; i++) {
+      const condition = deck.tagConditions[i];
+      if (i === 0) {
+        parts.push(`#${condition.tag}`);
+      } else {
+        const operator = condition.operator === 'OR' ? ' OR ' : ' AND ';
+        parts.push(`${operator}#${condition.tag}`);
+      }
+    }
+
+    return parts.join('');
   }
 }

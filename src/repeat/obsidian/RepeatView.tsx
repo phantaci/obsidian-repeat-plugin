@@ -1,19 +1,20 @@
-import {
-  Component,
-  debounce,
-  ItemView,
-  WorkspaceLeaf,
-  TFile,
-} from 'obsidian';
-import { getAPI, DataviewApi } from 'obsidian-dataview';
+import { Component, TFile, WorkspaceLeaf } from 'obsidian';
+import { ItemView } from 'obsidian';
+import { getAPI } from 'obsidian-dataview';
+import { DataviewApi } from 'obsidian-dataview';
+import { debounce } from 'obsidian';
 
-import { determineFrontmatterBounds, updateRepetitionMetadata } from '../../frontmatter';
+import { RepeatPluginSettings } from '../../settings';
+import { Deck } from '../../settings';
+import { getNextDueNote } from '../queries';
+import { getNextDueNoteFromDeck } from '../deck';
 import { getRepeatChoices } from '../choices';
 import { RepeatChoice } from '../repeatTypes';
-import { getNextDueNote } from '../queries';
+import { renderTitleElement, renderMarkdown } from '../../markdown';
+import { updateRepetitionMetadata } from '../../frontmatter';
+import { determineFrontmatterBounds, replaceOrInsertField } from '../../frontmatter';
 import { serializeRepetition } from '../serializers';
-import { renderMarkdown, renderTitleElement } from '../../markdown';
-import { RepeatPluginSettings } from '../../settings';
+import { getNotesForDeck } from '../deck';
 
 const MODIFY_DEBOUNCE_MS = 1 * 1000;
 export const REPEATING_NOTES_DUE_VIEW = 'repeating-notes-due-view';
@@ -30,6 +31,7 @@ class RepeatView extends ItemView {
   root: Element;
   settings: RepeatPluginSettings;
   buttonElements: HTMLButtonElement[] = [];
+  selectedDeck: Deck | undefined;
 
   constructor(leaf: WorkspaceLeaf, settings: RepeatPluginSettings) {
     super(leaf);
@@ -177,14 +179,30 @@ class RepeatView extends ItemView {
     // Reset the message container so that loading message is hidden.
     this.setMessage('');
     this.messageContainer.style.display = 'none';
-    const page = getNextDueNote(
-      this.dv,
-      this.settings.ignoreFolderPath,
-      ignoreFilePath,
-      this.settings.enqueueNonRepeatingNotes,
-      this.settings.defaultRepeat);
+    
+    let page;
+    if (this.selectedDeck) {
+      // Use deck-specific query
+      page = getNextDueNoteFromDeck(
+        this.dv,
+        this.selectedDeck,
+        this.settings.ignoreFolderPath,
+        ignoreFilePath,
+        this.settings.enqueueNonRepeatingNotes,
+        this.settings.defaultRepeat);
+    } else {
+      // Use default query (all notes)
+      page = getNextDueNote(
+        this.dv,
+        this.settings.ignoreFolderPath,
+        ignoreFilePath,
+        this.settings.enqueueNonRepeatingNotes,
+        this.settings.defaultRepeat);
+    }
+    
     if (!page) {
-      this.setMessage('All done for now!');
+      const deckName = this.selectedDeck ? this.selectedDeck.name : 'All Notes';
+      this.setMessage(`All done for ${deckName}!`);
       this.buttonsContainer.createEl('button', {
         text: 'Refresh',
       },
@@ -236,6 +254,8 @@ class RepeatView extends ItemView {
         'click', onBlurredClick, { once: true });
     }
 
+    // Clear any existing content first
+    markdownContainer.empty();
     this.previewContainer.appendChild(markdownContainer);
 
     // Render the note contents.
@@ -252,13 +272,28 @@ class RepeatView extends ItemView {
       this.component,
       this.app.vault);
 
-    // Auto-play first audio if enabled
-    if (this.settings.autoPlayAudio) {
-      this.autoPlayFirstAudio(contentMarkdown, markdownContainer);
+    // Auto-play first audio if enabled and we have a valid current file
+    if (this.settings.autoPlayAudio && this.currentDueFilePath) {
+      // Add a small delay to ensure DOM is fully updated
+      setTimeout(() => {
+        this.autoPlayFirstAudio(contentMarkdown, markdownContainer);
+      }, 100);
     }
   }
 
   resetView() {
+    
+    // Stop any playing audio before removing containers
+    if (this.previewContainer) {
+      const audioElements = this.previewContainer.querySelectorAll('audio');
+      audioElements.forEach((audio: HTMLAudioElement) => {
+        if (!audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      });
+    }
+    
     this.messageContainer && this.messageContainer.remove();
     this.buttonsContainer && this.buttonsContainer.remove();
     this.previewContainer && this.previewContainer.remove();
@@ -278,9 +313,11 @@ class RepeatView extends ItemView {
   }
 
   autoPlayFirstAudio(markdown: string, container: HTMLElement) {
+    
     // Extract audio file references from markdown (e.g., ![[audio.m4a]])
     const audioRegex = /!\[\[([^[\]]*\.(mp3|m4a|wav|ogg|webm|flac))\]\]/gi;
     const matches = markdown.match(audioRegex);
+    
     
     if (!matches || matches.length === 0) {
       return;
@@ -289,6 +326,7 @@ class RepeatView extends ItemView {
     // Wait for the DOM to be rendered, then find and play the first audio element
     setTimeout(() => {
       const audioElements = container.querySelectorAll('audio');
+      
       if (audioElements.length > 0) {
         const firstAudio = audioElements[0] as HTMLAudioElement;
         
@@ -297,7 +335,6 @@ class RepeatView extends ItemView {
           // Auto-play succeeded, remove any play button if it exists
           this.removeAudioPlayButton(container);
         }).catch((error) => {
-          console.log('Auto-play failed, showing play button for user interaction');
           // Auto-play failed (likely mobile), show a play button
           this.showAudioPlayButton(container, firstAudio);
         });
@@ -337,7 +374,6 @@ class RepeatView extends ItemView {
         // Hide button after successful play
         playButton.style.display = 'none';
       }).catch((error) => {
-        console.log('Manual audio play failed:', error);
       });
     };
 
@@ -353,14 +389,12 @@ class RepeatView extends ItemView {
     }
   }
 
-  async addRepeatButton(
-    choice: RepeatChoice,
-    file: TFile,
-  ) {
+  addRepeatButton(choice: RepeatChoice, file: TFile) {
     const buttonIndex = this.buttonElements.length;
     const shortcutKey = buttonIndex + 1;
     
     return this.buttonsContainer.createEl('button', {
+        cls: 'repeat-button',
         text: `${choice.text} (${shortcutKey})`,
       },
       (buttonElement) => {
@@ -375,12 +409,45 @@ class RepeatView extends ItemView {
         buttonElement.onclick = async () => {
           this.resetView();
           const markdown = await this.app.vault.read(file);
-          const newMarkdown = updateRepetitionMetadata(
+          let newMarkdown = updateRepetitionMetadata(
             markdown, serializeRepetition(choice.nextRepetition));
+          
+          // Update memory level for deck statistics (1-based indexing)
+          newMarkdown = this.updateMemoryLevel(newMarkdown, buttonIndex + 1);
+          
           this.app.vault.modify(file, newMarkdown);
           this.setPage(file.path);
         }
       });
+  }
+
+  updateMemoryLevel(markdown: string, memoryLevel: number): string {
+    // memoryLevel is now 1-based (1, 2, 3, 4...)
+    
+    // Use the existing frontmatter utility functions for safe manipulation
+    const frontmatterBounds = determineFrontmatterBounds(markdown);
+    
+    if (frontmatterBounds) {
+      const [start, end] = frontmatterBounds;
+      let frontmatter = markdown.slice(start, end);
+      const bodyContent = markdown.slice(end);
+      
+      // Use replaceOrInsertField to safely add/update memory_level
+      frontmatter = replaceOrInsertField(frontmatter, 'memory_level', memoryLevel.toString());
+      
+      return markdown.slice(0, start) + frontmatter + bodyContent;
+    } else {
+      // No frontmatter exists, create new one using the standard approach
+      return `---\nmemory_level: ${memoryLevel}\n---\n${markdown}`;
+    }
+  }
+
+  setSelectedDeck(deck: Deck) {
+    this.selectedDeck = deck;
+    // Reset the view first to clear any existing content
+    this.resetView();
+    // Then refresh the view with the selected deck
+    this.setPage();
   }
 }
 

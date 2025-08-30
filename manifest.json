@@ -4,7 +4,7 @@
   "version": "1.10.0",
   "minAppVersion": "1.1.0",
   "description": "Review notes using periodic or spaced repetition.",
-  "author": "Andre Perunicic",
-  "authorUrl": "https://github.com/prncc/obsidian-repeat-plugin/",
+  "author": "Jason Wu",
+  "authorUrl": "https://github.com/phantaci/obsidian-repeat-plugin/",
   "isDesktopOnly": false
 }

@@ -232,17 +232,13 @@ function getCustomSpacedRepeatChoices(
       [convertCustomIntervalUnit(button.unit)]: button.amount,
     });
 
-    // Convert to hours for storage consistency
-    const diffHours = Math.max(1, Math.round(nextRepeatDueAt.diff(now, 'hours').hours));
-
     choices.push({
       text: `${button.amount}${button.unit} ${button.label}`,
       color: button.color,
       nextRepetition: {
         ...repetition,
         repeatDueAt: nextRepeatDueAt,
-        repeatPeriod: diffHours,
-        repeatPeriodUnit: 'HOUR',
+        // Preserve original repeatPeriod and repeatPeriodUnit
       }
     });
   });
@@ -320,8 +316,7 @@ function getSpacedRepeatChoices(
       nextRepetition: {
         ...repetition,
         repeatDueAt: nextRepeatDueAt,
-        repeatPeriod: hours,
-        repeatPeriodUnit: 'HOUR',
+        // Keep original repeat properties unchanged - don't modify repeatPeriod or repeatPeriodUnit
       }
     };
   });

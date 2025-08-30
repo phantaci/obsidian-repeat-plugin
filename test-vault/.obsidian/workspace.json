@@ -8,20 +8,59 @@
         "type": "tabs",
         "children": [
           {
-            "id": "1da0be32c4dac014",
+            "id": "5e4b71e9c68787ba",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Sample Daily Note.md",
+                "file": "Sample New Note2.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Sample Daily Note"
+              "title": "Sample New Note2"
+            }
+          },
+          {
+            "id": "66cd8a09e3e77553",
+            "type": "leaf",
+            "state": {
+              "type": "repeating-notes-due-view",
+              "state": {},
+              "icon": "clock",
+              "title": "Repeat"
+            }
+          },
+          {
+            "id": "12818a4755823eab",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Sample New Note1.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Sample New Note1"
+            }
+          },
+          {
+            "id": "9460682102a800f3",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Sample New Note1.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Sample New Note1"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -78,8 +117,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "0ee385e49f937c07",
@@ -152,7 +190,8 @@
               "title": "Sample Daily Note 的大纲"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "horizontal",
@@ -171,11 +210,13 @@
       "repeat-plugin:Repeat due notes": false
     }
   },
-  "active": "1da0be32c4dac014",
+  "active": "12818a4755823eab",
   "lastOpenFiles": [
+    "Sample New Note2.md",
+    "Sample New Note1.md",
     "Sample Spaced Note.md",
     "Sample Daily Note.md",
-    "initiative.m4a",
-    "README.md"
+    "README.md",
+    "initiative.m4a"
   ]
 }

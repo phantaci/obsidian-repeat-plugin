@@ -1,9 +1,10 @@
 ---
 repeat: spaced every hour
 hidden: true
-due_at: 2025-08-29T15:37:58.611+08:00
+due_at: 2025-08-30T09:31:00.408+08:00
+memory_level: 2
 ---
-
+#单词 #Tech
 
 ![[initiative.m4a]]
 

@@ -116,11 +116,16 @@
 }
 
 .repeat-embedded_note {
-  padding: 15px 30px;
+  padding: 0px 30px;
+  padding-top: 0px;
   max-width: var(--file-line-width);
   margin-left: auto;
   margin-right: auto;
   padding-bottom: 80px; /* Reduced space for floating buttons */
+}
+
+.repeat-embedded_note .embed-title {
+  font-size: 32px;
 }
 
 .repeat-markdown_embed_title {

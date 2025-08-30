@@ -1,12 +1,14 @@
 ---
-repeat: spaced every hour
+repeat: spaced every 24 hours
 hidden: true
-due_at: 2025-08-29T15:38:02.745+08:00
+due_at: 2025-08-29T22:01:21.708+08:00
+memory_level: 1
 ---
+#短语 #Misc #单词 #Tech 
 
 # Spaced Repetition Note
 
-This note uses s1paced repetition and has hidden content for flashcard-style review.
+This note uses spaced repetition and has hidden content for flashcard-style review.
 
 ## Question
 What are the key benefits of spaced repetition?
